@@ -3,17 +3,17 @@ import { AlertDialog, AlertDialogBody, AlertDialogContent, AlertDialogFooter, Al
 import { ArrowForwardIcon } from "@chakra-ui/icons";
 import { useEffect, useRef, useState } from "react";
 
-function UsernamePrompt({websocket,setName}){
+const WEBSOCKET_URL="wss://smvtb9ary4.execute-api.ap-southeast-1.amazonaws.com/production";
+
+function UsernamePrompt({websocket}){
     const { isOpen, onOpen, onClose } = useDisclosure();
 
     useEffect(()=>{
         onOpen();
     },[onOpen])
 
-    setName("MOTHER THERESA");
     const handleKeyDown = (websocket,name) => {
-        // setName(name);
-        websocket.send(JSON.stringify({"action":"setName","name":name}));
+        websocket.current.send(JSON.stringify({"action":"setName","name":name}));
         onClose();
     }
 
@@ -67,38 +67,38 @@ export default function ChatApp() {
 
     // const [websocket, setWebsocket] = useState();
     const [publicMessageList, setPublicMessageList] = useState([]);
-    const [userName, setName] = useState();
-    var myConnectionId;
+    const [loading, setLoading] = useState(false);
+    const userName = useRef();
+    const myConnectionId= useRef();
     const messageRef=useRef();
-    let websocket=new WebSocket("wss://smvtb9ary4.execute-api.ap-southeast-1.amazonaws.com/production");
-    
+    const websocket = useRef();
 
     useEffect(()=>{
         // setWebsocket(websocket);
+        websocket.current=new WebSocket(WEBSOCKET_URL);
 
-        websocket.onopen = function () {
+        websocket.current.onopen = function () {
             console.log('connected to websocket');
         };
 
-        websocket.onmessage = async (evt) => {
+        websocket.current.onmessage = async (evt) => {
             console.log(evt.data);
             let data = await JSON.parse(evt.data);
             if (data.type === "update"){
                 if (data.message === "set name success"){
-                    console.log(userName);
-                    setName("greg");
-                    console.log(userName);
-                    myConnectionId=data.id;
+                    userName.current=data.name;
+                    myConnectionId.current=data.id;
                 } else setPublicMessageList((prevArray)=>[...prevArray,
                         {serverMessage:data.message}
                     ])
             }
             else if (data.type === "public"){
-                console.log(myConnectionId);
+                console.log(myConnectionId.current);
+                if (data.id===myConnectionId.current) setLoading(false);
                 setPublicMessageList((prevArray)=>[...prevArray,
                     {name:data.name,
                     text:data.message,
-                    isSelf:data.id===myConnectionId}
+                    isSelf:data.id===myConnectionId.current}
                 ]);
             }
 
@@ -109,24 +109,28 @@ export default function ChatApp() {
             // }
         };
 
-        websocket.onclose = function () {
+        websocket.current.onclose = function () {
             console.log('socket closed');
             // setLocationData({"state":"disconnected","data":[]});
         };
     }, [])
 
     const sendMessage=(ws,message)=>{
-        ws.send(JSON.stringify({"action":"sendPublic","message":message}));
+        if (loading) return;
+        ws.current.send(JSON.stringify({"action":"sendPublic","message":message}));
+        messageRef.current.value="";
+        setLoading(true);
+
     }
 
     return (
         <div className="main-container">
-            <UsernamePrompt websocket={websocket} setName={setName}/>
+            <UsernamePrompt websocket={websocket}/>
             <div className="main-chat-container">
             
                 <div className="side-bar">
                     <h2>Chat App</h2>
-                    <div>fdsafdsa</div>
+                    <div>{userName.current}</div>
                 </div>
                 <div className="main-chat">
                     <div className="text-messages">
@@ -150,10 +154,10 @@ export default function ChatApp() {
                         /> 
                          {/*TODO 
                          1.when enter pressed should trigger loading on button 
-                         2.clear input when enter
                          */}
                         <Button 
-                        colorScheme='blue' 
+                        isLoading={loading}
+                        color='white'
                         bg='blue' 
                         variant="outline" 
                         rightIcon={<ArrowForwardIcon />}
