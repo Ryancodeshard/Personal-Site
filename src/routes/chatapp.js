@@ -63,18 +63,41 @@ function SystemMessage({text}){
     )
 }
 
+function Conversation({convo}){
+    return (
+        <div>
+            <div>{convo["name"]}</div>
+        </div>
+    )
+    //TODO create divs for each conversation
+    //2. onclick add to 
+}
+
+
+function Chat({messageWindow}){
+    return (
+        <div className="text-messages">
+        {messageWindow && messageWindow.map((msg,index)=>
+            msg.serverMessage?
+            <SystemMessage key={index} text={msg.serverMessage}/>:
+            <ChatMessage key={index} name={msg.name} text={msg.text} isSelf={msg.isSelf}/>
+        )}
+        </div>
+    )
+}
+
 export default function ChatApp() {
 
     // const [websocket, setWebsocket] = useState();
-    const [publicMessageList, setPublicMessageList] = useState([]);
+    const [messages, setMessages] = useState({"public":{"name":"Public","messageList":[]}});
     const [loading, setLoading] = useState(false);
+    const [focusId,setWindowFocus] = useState('public');
     const userName = useRef();
     const myConnectionId= useRef();
     const messageRef=useRef();
     const websocket = useRef();
 
     useEffect(()=>{
-        // setWebsocket(websocket);
         websocket.current=new WebSocket(WEBSOCKET_URL);
 
         websocket.current.onopen = function () {
@@ -82,45 +105,44 @@ export default function ChatApp() {
         };
 
         websocket.current.onmessage = async (evt) => {
-            console.log(evt.data);
             let data = await JSON.parse(evt.data);
-            if (data.type === "update"){
+            console.log(data);
+            if (data.id === "server"){
                 if (data.message === "set name success"){
                     userName.current=data.name;
-                    myConnectionId.current=data.id;
-                } else setPublicMessageList((prevArray)=>[...prevArray,
-                        {serverMessage:data.message}
-                    ])
+                    myConnectionId.current=data.recipient;
+                    console.log(myConnectionId.current);
+                } else {
+                    let newarr = messages["public"]["messageList"];
+                    newarr.push({serverMessage:data.message});
+                    setMessages({...messages,"public":{...messages["public"],"messageList":newarr}});
+                }
             }
-            else if (data.type === "public"){
-                console.log(myConnectionId.current);
+            else {
                 if (data.id===myConnectionId.current) setLoading(false);
-                setPublicMessageList((prevArray)=>[...prevArray,
+                const recipient= await data.recipient;
+                let newarr = messages[recipient]["messageList"];
+                newarr.push(
                     {name:data.name,
                     text:data.message,
                     isSelf:data.id===myConnectionId.current}
-                ]);
+                );
+                setMessages({...messages,[recipient]:{...messages[recipient],"messageList":newarr}});
             }
-
-            // if (data["privateMessage"]){
-            // 	console.log(data["privateMessage"])
-            // 	data["privateMessage"].forEach(d=>console.log(d));
-            // 	setLocationData(prevlocationdata => ({state:"connected",data:data["privateMessage"]}));
-            // }
+            console.log(Object.keys(messages).length);
         };
 
         websocket.current.onclose = function () {
             console.log('socket closed');
-            // setLocationData({"state":"disconnected","data":[]});
         };
     }, [])
+    // useEffect(()=>console.log("main component reloaded"));
 
     const sendMessage=(ws,message)=>{
         if (loading) return;
-        ws.current.send(JSON.stringify({"action":"sendPublic","message":message}));
+        ws.current.send(JSON.stringify({"action":"sendMessage","message":message,"recipient":focusId}));
         messageRef.current.value="";
         setLoading(true);
-
     }
 
     return (
@@ -130,19 +152,19 @@ export default function ChatApp() {
             
                 <div className="side-bar">
                     <h2>Chat App</h2>
-                    <div>{userName.current}</div>
+                    <div style={{'font-size':'30px'}}>{userName.current}</div>
+                    {Object.keys(messages).map( (key)=>{
+                        console.log("key:",key,"messagelist",messages[key])
+                        return <Conversation convo={messages[key]}/>
+                    })}
                 </div>
+
+
                 <div className="main-chat">
-                    <div className="text-messages">
-                        <ChatMessage name="Vishnu" text="Hello" isSelf={false}/>
-                        <ChatMessage name="Vishnu" text="Anyone there?" isSelf={false}/>
-                        {publicMessageList.map((msg,index)=>
-                        msg.serverMessage?
-                        <SystemMessage key={index} text={msg.serverMessage}/>:
-                        <ChatMessage key={index} name={msg.name} text={msg.text} isSelf={msg.isSelf}/>
-                        )}
-                        
+                    <div className="chat-window-name">
+                        <div ><b style={{'font-size':'20px'}}>{messages[focusId]['name']}</b></div>
                     </div>
+                    <Chat messageWindow={messages[focusId]["messageList"]}/>
                     <div className="text-inputarea">
                         <Input 
                         _placeholder={{ color: 'blue.500' }} 
@@ -152,9 +174,6 @@ export default function ChatApp() {
                         ref={messageRef}
                         onKeyDown={(e)=>e.key==='Enter'&& sendMessage(websocket,e.target.value)} 
                         /> 
-                         {/*TODO 
-                         1.when enter pressed should trigger loading on button 
-                         */}
                         <Button 
                         isLoading={loading}
                         color='white'

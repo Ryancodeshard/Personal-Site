@@ -2,7 +2,6 @@
     display: flex;
     flex-wrap: wrap;
     height: 100vh;
-    /* background-color: blue; */
 }
 
 .main-chat-container {
@@ -20,16 +19,20 @@
 
 .main-chat {
     flex:3;
-    right: 0;
     position: relative;
     display: flex;
+    flex-direction: column;
+    height: 100%;
 }
 
 .text-messages {
-    width: 100%;
-    background-color: #9dff9d;
     display: flex;
     flex-direction: column;
+    background-color: #9dff9d;
+    flex:1;
+    min-height: auto;
+    width: 100%;
+    overflow: auto;
 }
 
 .text-messages > * {
@@ -80,10 +83,15 @@
 .text-inputarea {
     flex: 0 0 5vh;
     background-color: white;
-    bottom: 0;
     width: 100%;
-    position: absolute;
     display: flex;
-    flex-direction: row;
 }
 
+.chat-window-name {
+    flex: 0 0 10vh;
+    width: 100%;
+    align-items: center;
+    display: flex;
+    /* margin: 1vh; */
+    /* margin-left: 5vh; */
+}
