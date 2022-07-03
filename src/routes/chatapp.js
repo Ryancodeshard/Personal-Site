@@ -3,7 +3,7 @@ import { AlertDialog, AlertDialogBody, AlertDialogContent, AlertDialogFooter, Al
 import { ArrowForwardIcon } from "@chakra-ui/icons";
 import { useEffect, useRef, useState } from "react";
 
-const WEBSOCKET_URL="wss://smvtb9ary4.execute-api.ap-southeast-1.amazonaws.com/production";
+const WEBSOCKET_URL="wss://smvtb9ary4.execute-api.ap-southeast-1.amazonaws.com/production"; //TODO have to hide this
 
 function UsernamePrompt({websocket}){
     const { isOpen, onOpen, onClose } = useDisclosure();
@@ -46,22 +46,6 @@ function UsernamePrompt({websocket}){
     )
 }
 
-function ChatMessage({name,text,isSelf}){
-    return (
-        <div className={isSelf?"chat-message right":"chat-message left"}>
-            <div className="chat-name">{name}</div>
-            <div className={isSelf?"chat-bubble self":"chat-bubble others"}>{text}</div>
-        </div>
-    )
-}
-
-function SystemMessage({text}){
-    return (
-        <div className="system-message">
-            {text}
-        </div>
-    )
-}
 
 function Conversation({convo}){
     return (
@@ -70,43 +54,36 @@ function Conversation({convo}){
         </div>
     )
     //TODO create divs for each conversation
-    //2. onclick add to 
 }
 
-
-function Chat({messageWindow}){
-    return (
-        <div className="text-messages">
-        {messageWindow && messageWindow.map((msg,index)=>
-            msg.serverMessage?
-            <SystemMessage key={index} text={msg.serverMessage}/>:
-            <ChatMessage key={index} name={msg.name} text={msg.text} isSelf={msg.isSelf}/>
-        )}
-        </div>
-    )
-}
 
 export default function ChatApp() {
-
-    // const [websocket, setWebsocket] = useState();
     const [messages, setMessages] = useState({"public":{"name":"Public","messageList":[]}});
     const [loading, setLoading] = useState(false);
-    const [focusId,setWindowFocus] = useState('public');
+    const [focusId,setFocusId] = useState('public');
     const userName = useRef();
     const myConnectionId= useRef();
     const messageRef=useRef();
-    const websocket = useRef();
+    const websocket = useRef(null);
 
     useEffect(()=>{
         websocket.current=new WebSocket(WEBSOCKET_URL);
-
         websocket.current.onopen = function () {
             console.log('connected to websocket');
         };
+        websocket.current.onclose = function () {
+            console.log('socket closed');
+        };
+    },[])
+
+    useEffect(()=>{
+        if (!websocket.current) return;
 
         websocket.current.onmessage = async (evt) => {
+            console.log("Message incoming!!!!",Object.keys(messages));
             let data = await JSON.parse(evt.data);
             console.log(data);
+            console.log("current state",messages)
             if (data.id === "server"){
                 if (data.message === "set name success"){
                     userName.current=data.name;
@@ -121,22 +98,49 @@ export default function ChatApp() {
             else {
                 if (data.id===myConnectionId.current) setLoading(false);
                 const recipient= await data.recipient;
+                console.log("before",Object.keys(messages))
+                // if (!messages.hasOwnProperty(recipient)) messages[recipient] = {"name":data.name,"messageList":[]}
                 let newarr = messages[recipient]["messageList"];
                 newarr.push(
                     {name:data.name,
                     text:data.message,
-                    isSelf:data.id===myConnectionId.current}
+                    id:data.id}
                 );
                 setMessages({...messages,[recipient]:{...messages[recipient],"messageList":newarr}});
+                console.log("after",messages)
             }
-            console.log(Object.keys(messages).length);
+            console.log(Object.keys(messages));
         };
+    }, [messages])
 
-        websocket.current.onclose = function () {
-            console.log('socket closed');
-        };
-    }, [])
-    // useEffect(()=>console.log("main component reloaded"));
+    function Chat({messageWindow}){
+        return (
+            <div className="text-messages">
+            {messageWindow && messageWindow.map((msg,index)=>
+                msg.serverMessage?
+                <div key={index} className="system-message">{msg.serverMessage}</div>:
+                <ChatMessage key={index} from={msg.id} name={msg.name} text={msg.text}/>
+            )}
+            </div>
+        )
+    }
+
+    function handleChatClick(from,name){
+        console.log("Clicked")
+        if (from===myConnectionId.current) return
+        if (!messages.hasOwnProperty(from)) setMessages({...messages,[from]:{"name":name,"messageList":[]}},()=>console.log("CLICKED THEN?",messages));
+        setFocusId(from);
+    }
+    
+    function ChatMessage({from,name,text}){
+        console.log("from chat:",from,"name",name)
+        return (
+            <div  className={from===myConnectionId.current?"chat-message right":"chat-message left"}>
+                <div onClick={e=>handleChatClick(from,name)} className="chat-name">{name}</div>
+                <div className={from===myConnectionId.current?"chat-bubble self":"chat-bubble others"}>{text}</div>
+            </div>
+        )
+    }
 
     const sendMessage=(ws,message)=>{
         if (loading) return;
@@ -154,7 +158,6 @@ export default function ChatApp() {
                     <h2>Chat App</h2>
                     <div style={{'font-size':'30px'}}>{userName.current}</div>
                     {Object.keys(messages).map( (key)=>{
-                        console.log("key:",key,"messagelist",messages[key])
                         return <Conversation convo={messages[key]}/>
                     })}
                 </div>
