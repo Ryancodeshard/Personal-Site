@@ -10,6 +10,11 @@
     display: flex;
     flex-direction: row;
 }
+
+.title {
+    background-color: #9dff9d;
+}
+
 .side-bar {
     min-height: 100%;
     min-width: 20%;
@@ -94,4 +99,10 @@
     display: flex;
     /* margin: 1vh; */
     /* margin-left: 5vh; */
+}
+
+.convos {
+    flex: 0 0 10vh;
+    display: flex;
+    flex-direction: row;
 }

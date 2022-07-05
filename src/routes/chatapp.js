@@ -47,10 +47,11 @@ function UsernamePrompt({websocket}){
 }
 
 
-function Conversation({convo}){
+function Conversation({id,name,handleChatClick,memberCount}){
     return (
-        <div>
-            <div>{convo["name"]}</div>
+        <div className="convos" onClick={e=>handleChatClick(id,name)}>
+            <div>{name}</div>
+            {memberCount&&<div>{memberCount}</div>}
         </div>
     )
     //TODO create divs for each conversation
@@ -58,7 +59,7 @@ function Conversation({convo}){
 
 
 export default function ChatApp() {
-    const [messages, setMessages] = useState({"public":{"name":"Public","messageList":[]}});
+    const [messages, setMessages] = useState({"public":{"membercount":0,"name":"Public","messageList":[]}});
     const [loading, setLoading] = useState(false);
     const [focusId,setFocusId] = useState('public');
     const userName = useRef();
@@ -80,15 +81,15 @@ export default function ChatApp() {
         if (!websocket.current) return;
 
         websocket.current.onmessage = async (evt) => {
-            console.log("Message incoming!!!!",Object.keys(messages));
             let data = await JSON.parse(evt.data);
             console.log(data);
-            console.log("current state",messages)
             if (data.id === "server"){
                 if (data.message === "set name success"){
                     userName.current=data.name;
                     myConnectionId.current=data.recipient;
                     console.log(myConnectionId.current);
+                } else if (data.members){
+                    setMessages({...messages,"public":{...messages["public"],"memberCount":data.members.length}});
                 } else {
                     let newarr = messages["public"]["messageList"];
                     newarr.push({serverMessage:data.message});
@@ -97,9 +98,8 @@ export default function ChatApp() {
             }
             else {
                 if (data.id===myConnectionId.current) setLoading(false);
-                const recipient= await data.recipient;
-                console.log("before",Object.keys(messages))
-                // if (!messages.hasOwnProperty(recipient)) messages[recipient] = {"name":data.name,"messageList":[]}
+                const recipient= await data.recipient===myConnectionId.current?await data.id:await data.recipient;
+                if (!messages.hasOwnProperty(recipient)) messages[recipient] = {"name":data.name,"messageList":[]}
                 let newarr = messages[recipient]["messageList"];
                 newarr.push(
                     {name:data.name,
@@ -107,9 +107,8 @@ export default function ChatApp() {
                     id:data.id}
                 );
                 setMessages({...messages,[recipient]:{...messages[recipient],"messageList":newarr}});
-                console.log("after",messages)
             }
-            console.log(Object.keys(messages));
+            console.log(messages);
         };
     }, [messages])
 
@@ -128,7 +127,7 @@ export default function ChatApp() {
     function handleChatClick(from,name){
         console.log("Clicked")
         if (from===myConnectionId.current) return
-        if (!messages.hasOwnProperty(from)) setMessages({...messages,[from]:{"name":name,"messageList":[]}},()=>console.log("CLICKED THEN?",messages));
+        if (!messages.hasOwnProperty(from)) setMessages({...messages,[from]:{"name":name,"messageList":[]}});
         setFocusId(from);
     }
     
@@ -155,10 +154,12 @@ export default function ChatApp() {
             <div className="main-chat-container">
             
                 <div className="side-bar">
-                    <h2>Chat App</h2>
-                    <div style={{'font-size':'30px'}}>{userName.current}</div>
-                    {Object.keys(messages).map( (key)=>{
-                        return <Conversation convo={messages[key]}/>
+                    
+                    <h2 className="title">Definitely Not Telegram</h2>
+                    
+                    <div style={{'font-size':'30px','':''}}>{userName.current}</div>
+                    {Object.keys(messages).map( (key,index)=>{
+                        return <Conversation key={index} id={key} name={messages[key]['name']} handleChatClick={handleChatClick} memberCount={messages[key].memberCount?messages[key].memberCount:false}/>
                     })}
                 </div>
 
