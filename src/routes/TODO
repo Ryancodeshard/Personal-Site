@@ -1,4 +1,5 @@
-1. auto scroll down
-2. Good ui
+1. fix double render ChatApp bug (probably usestate)
+2. click enter too fast stuck loading
 3. same name diff color
-4. 
+4. disconnected private message reply
+4. good ui

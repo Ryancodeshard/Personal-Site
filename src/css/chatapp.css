@@ -13,6 +13,16 @@
 
 .title {
     background-color: #9dff9d;
+    text-align: center;
+    color: blue;
+    font-weight: bolder;
+    padding: 0 1vh 0 1vh;
+}
+
+.member-count {
+    margin-left: auto;
+    margin-right: 0;
+    color: green;
 }
 
 .side-bar {
@@ -20,6 +30,7 @@
     min-width: 20%;
     flex: 1;
     left: 0;
+    
 }
 
 .main-chat {
@@ -37,7 +48,7 @@
     flex:1;
     min-height: auto;
     width: 100%;
-    overflow: auto;
+    overflow-y: auto;
 }
 
 .text-messages > * {
@@ -59,6 +70,7 @@
 .chat-name {
     color:black;
     padding:10px;
+    cursor: pointer;
 }
 
 .chat-bubble {
@@ -97,12 +109,48 @@
     width: 100%;
     align-items: center;
     display: flex;
-    /* margin: 1vh; */
-    /* margin-left: 5vh; */
 }
 
 .convos {
-    flex: 0 0 10vh;
+    flex: 0 0 20vh;
     display: flex;
     flex-direction: row;
+    height: 7vh;
+    align-items: center;
+    border-bottom: 1px solid lightgray;
+    padding: 1vh 2vh 1vh 1vh;
+    cursor: pointer;
+}
+
+.focused {
+    background-color: rgb(0, 206, 206);
+}
+
+.profile-pic {
+    border-radius: 50%;
+    background-color: red;
+    height: 100%;
+    aspect-ratio: 1;
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+    margin: 3%;
+}
+
+.scroll-down-arrow {
+    z-index: 3;
+    position: fixed;
+    bottom: 5vh;
+    background-color: white;
+    color: blue;
+    height: 5vh;
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    align-self: center;
+    margin: 20px;
+    cursor: pointer;
 }

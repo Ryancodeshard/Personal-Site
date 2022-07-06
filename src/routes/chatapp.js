@@ -1,6 +1,6 @@
 import "../css/chatapp.css"
 import { AlertDialog, AlertDialogBody, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogOverlay, Button, Input, useDisclosure } from '@chakra-ui/react'
-import { ArrowForwardIcon } from "@chakra-ui/icons";
+import { ArrowForwardIcon, ChevronDownIcon } from "@chakra-ui/icons";
 import { useEffect, useRef, useState } from "react";
 
 const WEBSOCKET_URL="wss://smvtb9ary4.execute-api.ap-southeast-1.amazonaws.com/production"; //TODO have to hide this
@@ -47,14 +47,14 @@ function UsernamePrompt({websocket}){
 }
 
 
-function Conversation({id,name,handleChatClick,memberCount}){
+function Conversation({id,name,handleChatClick,memberCount,focusId}){
     return (
-        <div className="convos" onClick={e=>handleChatClick(id,name)}>
+        <div className={focusId===id?"convos focused":"convos"} onClick={e=>handleChatClick(id,name)}>
+            <div className="profile-pic">{Array.from(name)[0]}</div>
             <div>{name}</div>
-            {memberCount&&<div>{memberCount}</div>}
+            {memberCount&&<div className="member-count">{memberCount+" "}online</div>}
         </div>
     )
-    //TODO create divs for each conversation
 }
 
 
@@ -113,13 +113,35 @@ export default function ChatApp() {
     }, [messages])
 
     function Chat({messageWindow}){
+        const textWindow = useRef()
+        const [showArrow,setShowArrow] = useState(false)
+        const lastText = useRef()
+
+        useEffect(()=>handleClick(),[]);
+
+        function handleScroll(){
+            if (textWindow.current) {
+                const { scrollTop, scrollHeight, clientHeight } = textWindow.current;
+                if (scrollTop + clientHeight !== scrollHeight) setShowArrow(true)
+                else setShowArrow(false)
+            }
+        }
+
+        function handleClick(){
+            if (lastText.current)
+            lastText.current.scrollIntoView({ behavior: "smooth" });
+            setShowArrow(false)
+        }
+
         return (
-            <div className="text-messages">
+            <div className="text-messages" ref={textWindow} onScroll={handleScroll}>
             {messageWindow && messageWindow.map((msg,index)=>
                 msg.serverMessage?
                 <div key={index} className="system-message">{msg.serverMessage}</div>:
                 <ChatMessage key={index} from={msg.id} name={msg.name} text={msg.text}/>
             )}
+            <div ref={lastText}></div>
+            {showArrow&&<div className="scroll-down-arrow" onClick={handleClick}><ChevronDownIcon/></div>}
             </div>
         )
     }
@@ -132,7 +154,6 @@ export default function ChatApp() {
     }
     
     function ChatMessage({from,name,text}){
-        console.log("from chat:",from,"name",name)
         return (
             <div  className={from===myConnectionId.current?"chat-message right":"chat-message left"}>
                 <div onClick={e=>handleChatClick(from,name)} className="chat-name">{name}</div>
@@ -157,15 +178,17 @@ export default function ChatApp() {
                     
                     <h2 className="title">Definitely Not Telegram</h2>
                     
-                    <div style={{'font-size':'30px','':''}}>{userName.current}</div>
+                    <div style={{'font-size':'30px','padding': '0 2vh 0 2vh'}}>Welcome, {userName.current}!</div>
                     {Object.keys(messages).map( (key,index)=>{
-                        return <Conversation key={index} id={key} name={messages[key]['name']} handleChatClick={handleChatClick} memberCount={messages[key].memberCount?messages[key].memberCount:false}/>
+                        return <Conversation key={index} id={key} name={messages[key]['name']} 
+                        handleChatClick={handleChatClick} focusId={focusId}
+                        memberCount={messages[key].memberCount?messages[key].memberCount:false}/>
                     })}
                 </div>
 
 
                 <div className="main-chat">
-                    <div className="chat-window-name">
+                    <div className="chat-window-name"> 
                         <div ><b style={{'font-size':'20px'}}>{messages[focusId]['name']}</b></div>
                     </div>
                     <Chat messageWindow={messages[focusId]["messageList"]}/>
