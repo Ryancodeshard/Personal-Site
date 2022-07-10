@@ -1,5 +1,5 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
+import {createRoot} from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
@@ -21,17 +21,17 @@ const colors = {
 
 const theme = extendTheme({ colors })
 
-const root = ReactDOM.createRoot(document.getElementById("root"));
+const root = createRoot(document.getElementById("root"));
 root.render(
   <ChakraProvider theme={theme}>
-  <React.StrictMode>
+  {/* <React.StrictMode> */}
   <BrowserRouter>
   <Routes>
     <Route path="/" element={<App />} />
     <Route path="chatapp" element={<ChatApp />} />
   </Routes>
   </BrowserRouter>
-  </React.StrictMode>
+  {/* </React.StrictMode> */}
   </ChakraProvider>
 );
 

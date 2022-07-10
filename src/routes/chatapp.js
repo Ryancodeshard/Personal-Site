@@ -68,6 +68,7 @@ export default function ChatApp() {
     const websocket = useRef(null);
 
     useEffect(()=>{
+        console.log("what")
         websocket.current=new WebSocket(WEBSOCKET_URL);
         websocket.current.onopen = function () {
             console.log('connected to websocket');
@@ -117,7 +118,10 @@ export default function ChatApp() {
         const [showArrow,setShowArrow] = useState(false)
         const lastText = useRef()
 
-        useEffect(()=>handleClick(),[]);
+        useEffect(()=>{
+            console.log("component weird",messages)
+            handleClick()
+        },[]);
 
         function handleScroll(){
             if (textWindow.current) {
@@ -178,7 +182,7 @@ export default function ChatApp() {
                     
                     <h2 className="title">Definitely Not Telegram</h2>
                     
-                    <div style={{'font-size':'30px','padding': '0 2vh 0 2vh'}}>Welcome, {userName.current}!</div>
+                    <div className="username">Welcome, {userName.current}!</div>
                     {Object.keys(messages).map( (key,index)=>{
                         return <Conversation key={index} id={key} name={messages[key]['name']} 
                         handleChatClick={handleChatClick} focusId={focusId}
@@ -189,7 +193,7 @@ export default function ChatApp() {
 
                 <div className="main-chat">
                     <div className="chat-window-name"> 
-                        <div ><b style={{'font-size':'20px'}}>{messages[focusId]['name']}</b></div>
+                        <div ><b>{messages[focusId]['name']}</b></div>
                     </div>
                     <Chat messageWindow={messages[focusId]["messageList"]}/>
                     <div className="text-inputarea">
