@@ -1,4 +1,4 @@
-1. fix double render ChatApp bug (probably usestate)
+1. fix scrolling problem
 2. click enter too fast stuck loading
 3. same name diff color
 4. disconnected private message reply

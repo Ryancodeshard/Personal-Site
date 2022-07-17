@@ -1,6 +1,6 @@
 import "../css/chatapp.css"
 import { AlertDialog, AlertDialogBody, AlertDialogContent, AlertDialogFooter, AlertDialogHeader, AlertDialogOverlay, Button, Input, useDisclosure } from '@chakra-ui/react'
-import { ArrowForwardIcon, ChevronDownIcon } from "@chakra-ui/icons";
+import { ArrowForwardIcon, ChevronDownIcon, CloseIcon } from "@chakra-ui/icons";
 import { useEffect, useRef, useState } from "react";
 
 const WEBSOCKET_URL="wss://smvtb9ary4.execute-api.ap-southeast-1.amazonaws.com/production"; //TODO have to hide this
@@ -46,29 +46,98 @@ function UsernamePrompt({websocket}){
     )
 }
 
+function ProfileInfo({isProfileOpen,setProfileOpen,profileDets,handleChatClick}){
+    const { isOpen, onOpen, onClose } = useDisclosure();
 
-function Conversation({id,name,handleChatClick,memberCount,focusId}){
+    useEffect(()=>{
+        if (isProfileOpen) {
+            onOpen();
+            setProfileOpen(false);
+        }
+    },[isProfileOpen,onOpen,setProfileOpen])
+
     return (
-        <div className={focusId===id?"convos focused":"convos"} onClick={e=>handleChatClick(id,name)}>
-            <div className="profile-pic">{Array.from(name)[0]}</div>
-            <div>{name}</div>
-            {memberCount&&<div className="member-count">{memberCount+" "}online</div>}
+        <AlertDialog
+            isOpen={isOpen}
+            onClose={onClose}
+        >
+            <AlertDialogOverlay>
+            <AlertDialogContent>
+                <AlertDialogHeader  fontSize='lg' fontWeight='bold'>
+                User Info
+                </AlertDialogHeader>
+
+                <AlertDialogBody>
+                <div className="profile-header">
+                    <div className="profile-pic">
+                        {Array.from(profileDets.name)[0]}
+                    </div>
+                    <div>
+                        {profileDets.name}
+                    </div>
+                </div>
+                {profileDets.members&&<div fontSize='lg' fontWeight='bold'>Members</div>}
+                {profileDets.members&&Object.keys(profileDets.members).map((id,index)=>{
+                return (
+                <div className="convos" key={index} onClick={e=>{
+                    handleChatClick(id,profileDets.members[id])
+                    onClose();
+                }}>
+                    <div className="profile-pic">
+                        {Array.from(profileDets.members[id])[0]}
+                    </div>
+                    <div>
+                        {profileDets.members[id]}
+                    </div>
+                </div>)
+                })}
+                </AlertDialogBody>
+
+                <AlertDialogFooter>
+                
+                </AlertDialogFooter>
+            </AlertDialogContent>
+            </AlertDialogOverlay>
+        </AlertDialog>
+    )
+}
+
+function Conversation({id,name,handleChatClick,memberCount,focusId,setFocusId,status,deleteMessage}){
+    return (
+        <div className={focusId===id?"convos focused":"convos"}>
+            <div className="convo-click"  onClick={e=>handleChatClick(id,name)}>
+                <div className="profile-pic">{Array.from(name)[0]}</div>
+                <div>{name}</div>
+                {memberCount&&<div className="member-count">{memberCount+" "}online</div>}
+            </div>
+            {status==="offline"&&<CloseIcon className="member-count"
+            onClick={e=>{
+                deleteMessage(id)
+                if (focusId===id)
+                setFocusId('public')
+            }}/>}
         </div>
     )
 }
 
 
 export default function ChatApp() {
-    const [messages, setMessages] = useState({"public":{"membercount":0,"name":"Public","messageList":[]}});
-    const [loading, setLoading] = useState(false);
-    const [focusId,setFocusId] = useState('public');
+    const [messages, setMessages] = useState({"public":{"membercount":0,"status":"online","name":"Public","messageList":[]}});
+    const [focusId, setFocusId] = useState('public');
     const userName = useRef();
     const myConnectionId= useRef();
     const messageRef=useRef();
     const websocket = useRef(null);
+    const load = useRef(false);
+    const [profileOpen, setProfileOpen] = useState(false)
+
+    function deleteMessage(id){
+        const deleted = {...messages}
+        delete deleted[id]
+        setMessages(deleted);
+    }
 
     useEffect(()=>{
-        console.log("what")
         websocket.current=new WebSocket(WEBSOCKET_URL);
         websocket.current.onopen = function () {
             console.log('connected to websocket');
@@ -90,17 +159,17 @@ export default function ChatApp() {
                     myConnectionId.current=data.recipient;
                     console.log(myConnectionId.current);
                 } else if (data.members){
-                    setMessages({...messages,"public":{...messages["public"],"memberCount":data.members.length}});
+                    setMessages({...messages,"public":{...messages["public"],"members":data.members}});
                 } else {
-                    let newarr = messages["public"]["messageList"];
+                    let newarr = messages[data.recipient]["messageList"];
                     newarr.push({serverMessage:data.message});
-                    setMessages({...messages,"public":{...messages["public"],"messageList":newarr}});
+                    setMessages({...messages,[data.recipient]:{...messages[data.recipient],"messageList":newarr,"status":data.status?data.status:"online"}});
                 }
             }
             else {
-                if (data.id===myConnectionId.current) setLoading(false);
+                if (data.id===myConnectionId.current) load.current=false;
                 const recipient= await data.recipient===myConnectionId.current?await data.id:await data.recipient;
-                if (!messages.hasOwnProperty(recipient)) messages[recipient] = {"name":data.name,"messageList":[]}
+                if (!messages.hasOwnProperty(recipient)) messages[recipient] = {"name":data.name,"status":"online","messageList":[]}
                 let newarr = messages[recipient]["messageList"];
                 newarr.push(
                     {name:data.name,
@@ -113,15 +182,17 @@ export default function ChatApp() {
         };
     }, [messages])
 
+    
     function Chat({messageWindow}){
         const textWindow = useRef()
         const [showArrow,setShowArrow] = useState(false)
         const lastText = useRef()
 
         useEffect(()=>{
-            console.log("component weird",messages)
-            handleClick()
-        },[]);
+            handleClick();
+            messageRef.current.focus();
+        },[messageWindow]);
+
 
         function handleScroll(){
             if (textWindow.current) {
@@ -132,20 +203,19 @@ export default function ChatApp() {
         }
 
         function handleClick(){
-            if (lastText.current)
             lastText.current.scrollIntoView({ behavior: "smooth" });
             setShowArrow(false)
         }
 
         return (
             <div className="text-messages" ref={textWindow} onScroll={handleScroll}>
-            {messageWindow && messageWindow.map((msg,index)=>
-                msg.serverMessage?
-                <div key={index} className="system-message">{msg.serverMessage}</div>:
-                <ChatMessage key={index} from={msg.id} name={msg.name} text={msg.text}/>
-            )}
-            <div ref={lastText}></div>
-            {showArrow&&<div className="scroll-down-arrow" onClick={handleClick}><ChevronDownIcon/></div>}
+                {messageWindow && messageWindow.map((msg,index)=>
+                    msg.serverMessage?
+                    <div key={index} className="system-message">{msg.serverMessage}</div>:
+                    <ChatMessage key={index} from={msg.id} name={msg.name} text={msg.text}/>
+                )}
+                <div ref={lastText}/>
+                {showArrow&&<div className="scroll-down-arrow" onClick={handleClick}><ChevronDownIcon/></div>}
             </div>
         )
     }
@@ -165,37 +235,38 @@ export default function ChatApp() {
             </div>
         )
     }
-
-    const sendMessage=(ws,message)=>{
-        if (loading) return;
-        ws.current.send(JSON.stringify({"action":"sendMessage","message":message,"recipient":focusId}));
+    
+    const sendMessage=(message)=>{
+        if (load.current) return;
+        websocket.current.send(JSON.stringify({"action":"sendMessage","message":message,"recipient":focusId}));
         messageRef.current.value="";
-        setLoading(true);
+        load.current = true;
+        console.log(load.current)
     }
-
     return (
         <div className="main-container">
             <UsernamePrompt websocket={websocket}/>
+            <ProfileInfo isProfileOpen={profileOpen} setProfileOpen={setProfileOpen} profileDets={messages[focusId]} handleChatClick={handleChatClick}/>
             <div className="main-chat-container">
             
                 <div className="side-bar">
                     
                     <h2 className="title">Definitely Not Telegram</h2>
                     
-                    <div className="username">Welcome, {userName.current}!</div>
+                    <div className="username" >Welcome, {userName.current}!</div>
                     {Object.keys(messages).map( (key,index)=>{
-                        return <Conversation key={index} id={key} name={messages[key]['name']} 
-                        handleChatClick={handleChatClick} focusId={focusId}
-                        memberCount={messages[key].memberCount?messages[key].memberCount:false}/>
+                        return <Conversation key={index} id={key} name={messages[key].name} status={messages[key].status} deleteMessage={deleteMessage}
+                        handleChatClick={handleChatClick} focusId={focusId} setFocusId={setFocusId}
+                        memberCount={messages[key].members?Object.keys(messages[key].members).length:false}/>
                     })}
                 </div>
 
 
                 <div className="main-chat">
-                    <div className="chat-window-name"> 
-                        <div ><b>{messages[focusId]['name']}</b></div>
+                    <div onClick={()=>setProfileOpen(true)} className="chat-window-name"> 
+                        <b>{messages[focusId]['name']}</b>
                     </div>
-                    <Chat messageWindow={messages[focusId]["messageList"]}/>
+                    <Chat load={load} messageWindow={messages[focusId]['messageList']}/>
                     <div className="text-inputarea">
                         <Input 
                         _placeholder={{ color: 'blue.500' }} 
@@ -203,15 +274,15 @@ export default function ChatApp() {
                         color='black' 
                         variant='filled'
                         ref={messageRef}
-                        onKeyDown={(e)=>e.key==='Enter'&& sendMessage(websocket,e.target.value)} 
+                        onKeyDown={(e)=>e.key==='Enter'&& sendMessage(e.target.value)} 
                         /> 
                         <Button 
-                        isLoading={loading}
+                        isLoading={load.current}
                         color='white'
                         bg='blue' 
                         variant="outline" 
                         rightIcon={<ArrowForwardIcon />}
-                        onClick={()=>sendMessage(websocket,messageRef.current.value)}
+                        onClick={()=>sendMessage(messageRef.current.value)}
                         >
                             Send
                         </Button>
